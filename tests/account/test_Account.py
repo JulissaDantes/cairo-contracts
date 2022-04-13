@@ -1,4 +1,5 @@
 import pytest
+from ecdsa import SigningKey, SECP256k1
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
@@ -156,3 +157,18 @@ async def test_public_key_setter_different_account(account_factory):
         ),
         reverted_with="Account: caller is not this account"
     )
+
+@pytest.mark.asyncio
+async def test_eth_signature_support(account_factory):
+    _, account, _ = account_factory
+
+    # Generate right EC signature
+    sk = SigningKey.generate(curve=SECP256k1)
+    print(sk,'the generated curve')
+    vk = sk.verifying_key
+    vk.precompute()
+    signature = sk.sign(b"message")
+    assert vk.verify(signature, b"message")
+
+    execution_info = await account.get_public_key().call()
+    assert execution_info.result == (signer.public_key,)
