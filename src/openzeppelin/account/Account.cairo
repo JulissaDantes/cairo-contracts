@@ -80,13 +80,14 @@ func is_valid_signature{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*
+        ecdsa_ptr: SignatureBuiltin*,
+        nonce: felt
     }(
         hash: felt,
         signature_len: felt,
         signature: felt*
     ) -> ():
-    Account.is_valid_signature(hash, signature_len, signature)
+    Account.is_valid_signature(hash, signature_len, signature, nonce)
     return ()
 end
 

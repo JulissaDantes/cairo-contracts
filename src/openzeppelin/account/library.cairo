@@ -160,15 +160,14 @@ namespace Account:
             calldata: felt*,
             nonce: felt
         ) -> (response_len: felt, response: felt*):
-        alloc_locals
-
+        
         let (__fp__, _) = get_fp_and_pc()
         let (tx_info) = get_tx_info()
 
         # validate transaction
         is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature, nonce)
 
-        unsafe_execute(call_array_len, call_array, calldata_len, calldata)
+        return unsafe_execute(call_array_len, call_array, calldata_len, calldata)
     end
 
     func _execute_list{syscall_ptr: felt*}(
@@ -232,7 +231,7 @@ namespace Account:
             calldata_len: felt,
             calldata: felt*
         ) -> (response_len: felt, response: felt*):
-
+        alloc_locals
         let (_current_nonce) = Account_current_nonce.read()
         # bump nonce
         Account_current_nonce.write(_current_nonce + 1)
