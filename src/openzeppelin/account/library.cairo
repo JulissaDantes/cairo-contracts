@@ -3,6 +3,7 @@
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
+from starkware.cairo.common.cairo_secp.signature import verify_eth_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
@@ -121,9 +122,15 @@ namespace Account:
         }(
             hash: felt,
             signature_len: felt,
-            signature: felt*
+            signature: felt*,
+            nonce: felt
         ) -> ():
         let (_public_key) = Account_public_key.read()
+        let (_current_nonce) = Account_current_nonce.read()
+
+        # validate nonce
+        assert _current_nonce = nonce
+
 
         # This interface expects a signature pointer and length to make
         # no assumption about signature validation schemes.
@@ -157,27 +164,11 @@ namespace Account:
 
         let (__fp__, _) = get_fp_and_pc()
         let (tx_info) = get_tx_info()
-        let (_current_nonce) = Account_current_nonce.read()
-
-        # validate nonce
-        assert _current_nonce = nonce
-
-        # TMP: Convert `AccountCallArray` to 'Call'.
-        let (calls : Call*) = alloc()
-        _from_call_array_to_call(call_array_len, call_array, calldata, calls)
-        let calls_len = call_array_len
 
         # validate transaction
-        is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature)
+        is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature, nonce)
 
-        # bump nonce
-        Account_current_nonce.write(_current_nonce + 1)
-
-        # execute call
-        let (response : felt*) = alloc()
-        let (response_len) = _execute_list(calls_len, calls, response)
-
-        return (response_len=response_len, response=response)
+        unsafe_execute(call_array_len, call_array, calldata_len, calldata)
     end
 
     func _execute_list{syscall_ptr: felt*}(
@@ -228,5 +219,33 @@ namespace Account:
         # parse the remaining calls recursively
         _from_call_array_to_call(call_array_len - 1, call_array + AccountCallArray.SIZE, calldata, calls + Call.SIZE)
         return ()
+    end
+
+    func unsafe_execute{
+            syscall_ptr : felt*,
+            pedersen_ptr : HashBuiltin*,
+            range_check_ptr,
+            ecdsa_ptr: SignatureBuiltin*
+        }(
+            call_array_len: felt,
+            call_array: AccountCallArray*,
+            calldata_len: felt,
+            calldata: felt*
+        ) -> (response_len: felt, response: felt*):
+
+        let (_current_nonce) = Account_current_nonce.read()
+        # bump nonce
+        Account_current_nonce.write(_current_nonce + 1)
+
+        # TMP: Convert `AccountCallArray` to 'Call'.
+        let (calls : Call*) = alloc()
+        _from_call_array_to_call(call_array_len, call_array, calldata, calls)
+        let calls_len = call_array_len
+
+        # execute call
+        let (response : felt*) = alloc()
+        let (response_len) = _execute_list(calls_len, calls, response)
+
+        return (response_len=response_len, response=response)
     end
 end
