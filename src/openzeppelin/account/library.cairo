@@ -147,6 +147,38 @@ namespace Account:
         return ()
     end
 
+ func is_valid_eth_signature{
+            syscall_ptr : felt*,
+            pedersen_ptr : HashBuiltin*,
+            range_check_ptr,
+            ecdsa_ptr: SignatureBuiltin*
+        }(
+            hash: felt,
+            signature_len: felt,
+            signature: felt*,
+            nonce: felt
+        ) -> ():
+        let (_public_key) = Account_public_key.read()
+        let (_current_nonce) = Account_current_nonce.read()
+
+        # validate nonce
+        assert _current_nonce = nonce
+
+
+        # This interface expects a signature pointer and length to make
+        # no assumption about signature validation schemes.
+        # But this implementation does, and it expects a (sig_r, sig_s) pair.
+        let sig_r = signature[0]
+        let sig_s = signature[1]
+
+        verify_ecdsa_signature(
+            msg_hash=hash,
+            r=sig_r,
+            s=sig_s,
+            eth_address=_public_key            )
+
+        return ()
+    end
 
     func execute{
             syscall_ptr : felt*,
