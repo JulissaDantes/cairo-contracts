@@ -171,11 +171,11 @@ namespace Account:
         let sig_r = signature[0]
         let sig_s = signature[1]
 
-        verify_ecdsa_signature(
+        verify_eth_signature(
             msg_hash=hash,
             r=sig_r,
             s=sig_s,
-            eth_address=_public_key            )
+            eth_address=_public_key)
 
         return ()
     end
