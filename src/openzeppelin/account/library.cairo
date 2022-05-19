@@ -2,9 +2,10 @@
 
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address
+from starkware.cairo.common.cairo_secp.bigint import BigInt3
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_secp.signature import verify_eth_signature
-from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
@@ -147,19 +148,20 @@ namespace Account:
         return ()
     end
 
- func is_valid_eth_signature{
+    func is_valid_eth_signature{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr,
-            ecdsa_ptr: SignatureBuiltin*
+            bitwise_ptr: BitwiseBuiltin*
         }(
-            hash: felt,
+            hash: BigInt3,
             signature_len: felt,
-            signature: felt*,
+            signature: BigInt3*,
             nonce: felt
         ) -> ():
-        let (_public_key) = Account_public_key.read()
-        let (_current_nonce) = Account_current_nonce.read()
+        alloc_locals
+        let (_public_key) = get_public_key()
+        let (_current_nonce) = get_nonce()
 
         # validate nonce
         assert _current_nonce = nonce
@@ -170,11 +172,15 @@ namespace Account:
         # But this implementation does, and it expects a (sig_r, sig_s) pair.
         let sig_r = signature[0]
         let sig_s = signature[1]
+        
+        let (local keccak_ptr : felt*) = alloc()
+        let keccak_ptr_start = keccak_ptr
 
-        verify_eth_signature(
+        verify_eth_signature{keccak_ptr=keccak_ptr}(
             msg_hash=hash,
             r=sig_r,
             s=sig_s,
+            v=1,
             eth_address=_public_key)
 
         return ()
@@ -279,4 +285,5 @@ namespace Account:
 
         return (response_len=response_len, response=response)
     end
+
 end

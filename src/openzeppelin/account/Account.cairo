@@ -5,6 +5,7 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 
+from starkware.cairo.common.cairo_secp.signature import verify_eth_signature
 from openzeppelin.account.library import Account, AccountCallArray
 
 from openzeppelin.introspection.ERC165 import ERC165
