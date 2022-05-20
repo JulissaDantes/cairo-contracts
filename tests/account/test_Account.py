@@ -161,7 +161,7 @@ async def test_public_key_setter_different_account(account_factory):
     )
 
 @pytest.mark.asyncio
-async def test_secp256k1_account(account_factory):
+async def test_set_secp256k1_address_account(account_factory):
     _, account, _ = account_factory
     
     # Get ECDSA public key
