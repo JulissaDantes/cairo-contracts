@@ -165,5 +165,11 @@ async def test_secp256k1_account(account_factory):
     public_key = keys.get_public_key(private_key, curve.secp256k1)
 
     #is_valid_eth_signature
-    execution_info = await account.is_valid_eth_signature().call()
-    assert execution_info != none
+    execution_info = await account.get_public_key().call()
+    assert execution_info.result == (signer.public_key,)
+
+    # set new pubkey
+    await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [public_key])])
+
+    execution_info = await account.get_public_key().call()
+    assert execution_info.result == (public_key,)
