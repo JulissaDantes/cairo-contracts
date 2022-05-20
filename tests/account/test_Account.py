@@ -4,6 +4,9 @@ from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from utils import TestSigner, assert_revert, contract_path
 from fastecdsa import keys, curve
+from ecdsa import SigningKey, SECP256k1
+import codecs
+from Crypto.Hash import keccak
 
 signer = TestSigner(123456789987654321)
 other = TestSigner(987654321123456789)
@@ -136,13 +139,13 @@ async def test_public_key_setter(account_factory):
 
     execution_info = await account.get_public_key().call()
     assert execution_info.result == (signer.public_key,)
-
+    print("Buena"+str(type(other.public_key)))
+    print(other.public_key)
     # set new pubkey
     await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [other.public_key])])
 
     execution_info = await account.get_public_key().call()
     assert execution_info.result == (other.public_key,)
-
 
 @pytest.mark.asyncio
 async def test_public_key_setter_different_account(account_factory):
@@ -160,14 +163,21 @@ async def test_public_key_setter_different_account(account_factory):
 @pytest.mark.asyncio
 async def test_secp256k1_account(account_factory):
     _, account, _ = account_factory
-
-    private_key = 123456789987654321
-    public_key = keys.get_public_key(private_key, curve.secp256k1)
+    
+    # Get ECDSA public key
+    public_key_point = SigningKey.generate(curve=SECP256k1).verifying_key
+    key_bytes = public_key_point.to_string()
+    public_key_bytes = codecs.encode(key_bytes, 'hex')
+    keccak_hash = keccak.new(digest_bits=256)
+    keccak_hash.update(public_key_bytes)
+    keccak_digest = keccak_hash.hexdigest()
+    # Last 20 bytes
+    hex_address = '0x' + keccak_digest[-40:]
+    public_key = int(hex_address, 0)
 
     #is_valid_eth_signature
     execution_info = await account.get_public_key().call()
     assert execution_info.result == (signer.public_key,)
-
     # set new pubkey
     await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [public_key])])
 
