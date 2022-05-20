@@ -13,13 +13,24 @@ other = TestSigner(987654321123456789)
 IACCOUNT_ID = 0xf10dbd44
 TRUE = 1
 
+# Get ECDSA public key
+public_key_point = SigningKey.generate(curve=SECP256k1).verifying_key
+key_bytes = public_key_point.to_string()
+public_key_bytes = codecs.encode(key_bytes, 'hex')
+keccak_hash = keccak.new(digest_bits=256)
+keccak_hash.update(public_key_bytes)
+keccak_digest = keccak_hash.hexdigest()
+# Last 20 bytes
+hex_address = '0x' + keccak_digest[-40:]
+public_key = int(hex_address, 0)
+
 
 @pytest.fixture(scope='module')
 async def account_factory():
     starknet = await Starknet.empty()
     account = await starknet.deploy(
-        contract_path("openzeppelin/account/Account.cairo"),
-        constructor_calldata=[signer.public_key]
+        contract_path("tests/mocks/eth_account.cairo"),
+        constructor_calldata=[public_key]
     )
     bad_account = await starknet.deploy(
         contract_path("openzeppelin/account/Account.cairo"),
@@ -34,7 +45,7 @@ async def test_constructor(account_factory):
     _, account, _ = account_factory
 
     execution_info = await account.get_public_key().call()
-    assert execution_info.result == (signer.public_key,)
+    assert execution_info.result == (public_key,)
 
     execution_info = await account.supportsInterface(IACCOUNT_ID).call()
     assert execution_info.result == (TRUE,)
@@ -137,7 +148,7 @@ async def test_public_key_setter(account_factory):
     _, account, _ = account_factory
 
     execution_info = await account.get_public_key().call()
-    assert execution_info.result == (signer.public_key,)
+    assert execution_info.result == (public_key,)
     print("Buena"+str(type(other.public_key)))
     print(other.public_key)
     # set new pubkey
@@ -158,27 +169,3 @@ async def test_public_key_setter_different_account(account_factory):
         ),
         reverted_with="Account: caller is not this account"
     )
-
-@pytest.mark.asyncio
-async def test_set_secp256k1_address_account(account_factory):
-    _, account, _ = account_factory
-    
-    # Get ECDSA public key
-    public_key_point = SigningKey.generate(curve=SECP256k1).verifying_key
-    key_bytes = public_key_point.to_string()
-    public_key_bytes = codecs.encode(key_bytes, 'hex')
-    keccak_hash = keccak.new(digest_bits=256)
-    keccak_hash.update(public_key_bytes)
-    keccak_digest = keccak_hash.hexdigest()
-    # Last 20 bytes
-    hex_address = '0x' + keccak_digest[-40:]
-    public_key = int(hex_address, 0)
-
-    #is_valid_eth_signature
-    execution_info = await account.get_public_key().call()
-    assert execution_info.result == (signer.public_key,)
-    # set new pubkey
-    await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [public_key])])
-
-    execution_info = await account.get_public_key().call()
-    assert execution_info.result == (public_key,)

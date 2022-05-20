@@ -2,7 +2,8 @@
 
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address
-from starkware.cairo.common.cairo_secp.bigint import BigInt3
+from starkware.cairo.common.cairo_secp.bigint import BigInt3, uint256_to_bigint
+from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_secp.signature import verify_eth_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
@@ -204,6 +205,35 @@ namespace Account:
 
         # validate transaction
         is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature, nonce)
+
+        return unsafe_execute(call_array_len, call_array, calldata_len, calldata)
+    end
+
+    func eth_execute{
+            syscall_ptr : felt*,
+            pedersen_ptr : HashBuiltin*,
+            range_check_ptr,
+            ecdsa_ptr: SignatureBuiltin*
+        }(
+            call_array_len: felt,
+            call_array: AccountCallArray*,
+            calldata_len: felt,
+            calldata: felt*,
+            nonce: felt
+        ) -> (response_len: felt, response: felt*):
+        
+        let (__fp__, _) = get_fp_and_pc()
+        let (tx_info) = get_tx_info()
+
+        # data types conversions
+        local hash_uint256 : Uint256 = Uint256(low=0,high=tx_info.transaction_hash)
+        let (hash) = uint256_to_bigint(hash_uint256)
+        local signature_uint256 : Uint256 = Uint256(low=0,high=tx_info.signature)
+        let (signature) = uint256_to_bigint(signature_uint256)
+
+        # validate transaction
+        alloc_locals
+        is_valid_eth_signature(hash, tx_info.signature_len, signature, nonce)
 
         return unsafe_execute(call_array_len, call_array, calldata_len, calldata)
     end

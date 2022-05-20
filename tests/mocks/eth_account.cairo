@@ -1,14 +1,9 @@
-# SPDX-License-Identifier: MIT
-# OpenZeppelin Contracts for Cairo v0.1.0 (account/Account.cairo)
-
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-from starkware.cairo.common.cairo_secp.signature import verify_eth_signature
 from openzeppelin.account.library import Account, AccountCallArray
-
 from openzeppelin.introspection.ERC165 import ERC165
-
+from starkware.cairo.common.cairo_secp.bigint import BigInt3
 #
 # Constructor
 #
@@ -22,6 +17,7 @@ func constructor{
     Account.constructor(public_key)
     return ()
 end
+
 
 #
 # Getters
@@ -75,7 +71,6 @@ end
 # Business logic
 #
 
-#@view
 func is_valid_signature{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -83,11 +78,11 @@ func is_valid_signature{
         ecdsa_ptr: SignatureBuiltin*,
         nonce: felt
     }(
-        hash: felt,
+        hash: BigInt3,
         signature_len: felt,
-        signature: felt*
+        signature: BigInt3*
     ) -> ():
-    Account.is_valid_signature(hash, signature_len, signature, nonce)
+    Account.is_valid_eth_signature(hash, signature_len, signature, nonce)
     return ()
 end
 
@@ -104,7 +99,7 @@ func __execute__{
         calldata: felt*,
         nonce: felt
     ) -> (response_len: felt, response: felt*):
-    let (response_len, response) = Account.execute(
+    let (response_len, response) = Account.eth_execute(
         call_array_len,
         call_array,
         calldata_len,
