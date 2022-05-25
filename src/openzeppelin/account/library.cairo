@@ -5,7 +5,7 @@ from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.cairo_secp.bigint import BigInt3, uint256_to_bigint
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.signature import verify_ecdsa_signature
-from starkware.cairo.common.cairo_secp.signature import verify_eth_signature
+from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uint256
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
@@ -155,9 +155,9 @@ namespace Account:
             range_check_ptr,
             bitwise_ptr: BitwiseBuiltin*
         }(
-            hash: BigInt3,
+            hash: felt,
             signature_len: felt,
-            signature: BigInt3*,
+            signature: felt*,
             nonce: felt
         ) -> ():
         alloc_locals
@@ -167,18 +167,20 @@ namespace Account:
         # validate nonce
         assert _current_nonce = nonce
 
+        # data types conversions
+        local hash_uint256 : Uint256 = Uint256(low=0,high=hash)
 
         # This interface expects a signature pointer and length to make
         # no assumption about signature validation schemes.
         # But this implementation does, and it expects a (sig_r, sig_s) pair.
-        let sig_r = signature[0]
-        let sig_s = signature[1]
+        local sig_r : Uint256 = Uint256(low=0,high=signature[0])
+        local sig_s : Uint256 = Uint256(low=0,high=signature[1])
         
         let (local keccak_ptr : felt*) = alloc()
         let keccak_ptr_start = keccak_ptr
 
-        verify_eth_signature{keccak_ptr=keccak_ptr}(
-            msg_hash=hash,
+        verify_eth_signature_uint256{keccak_ptr=keccak_ptr}(
+            msg_hash=hash_uint256,
             r=sig_r,
             s=sig_s,
             v=1,
@@ -221,19 +223,15 @@ namespace Account:
             calldata: felt*,
             nonce: felt
         ) -> (response_len: felt, response: felt*):
-        
+        alloc_locals
         let (__fp__, _) = get_fp_and_pc()
         let (tx_info) = get_tx_info()
 
-        # data types conversions
-        local hash_uint256 : Uint256 = Uint256(low=0,high=tx_info.transaction_hash)
-        let (hash) = uint256_to_bigint(hash_uint256)
-        local signature_uint256 : Uint256 = Uint256(low=0,high=tx_info.signature)
-        let (signature) = uint256_to_bigint(signature_uint256)
+        let (local bitwise_ptr : BitwiseBuiltin*) = alloc()
+        let bitwise_ptr_start = bitwise_ptr
 
-        # validate transaction
-        alloc_locals
-        is_valid_eth_signature(hash, tx_info.signature_len, signature, nonce)
+        # validate transaction        
+        is_valid_eth_signature{bitwise_ptr=bitwise_ptr}(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature, nonce)
 
         return unsafe_execute(call_array_len, call_array, calldata_len, calldata)
     end
