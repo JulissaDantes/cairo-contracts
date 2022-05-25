@@ -149,8 +149,7 @@ async def test_public_key_setter(account_factory):
 
     execution_info = await account.get_public_key().call()
     assert execution_info.result == (public_key,)
-    print("Buena"+str(type(other.public_key)))
-    print(other.public_key)
+
     # set new pubkey
     await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [other.public_key])])
 

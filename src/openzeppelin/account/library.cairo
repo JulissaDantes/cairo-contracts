@@ -2,7 +2,7 @@
 
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address
-from starkware.cairo.common.cairo_secp.bigint import BigInt3, uint256_to_bigint
+from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uint256
@@ -168,13 +168,16 @@ namespace Account:
         assert _current_nonce = nonce
 
         # data types conversions
-        local hash_uint256 : Uint256 = Uint256(low=0,high=hash)
+        let (hash_high, hash_low) = split_felt(hash)
+        local hash_uint256 : Uint256 = Uint256(low=hash_low, high=hash_high)
 
         # This interface expects a signature pointer and length to make
         # no assumption about signature validation schemes.
         # But this implementation does, and it expects a (sig_r, sig_s) pair.
-        local sig_r : Uint256 = Uint256(low=0,high=signature[0])
-        local sig_s : Uint256 = Uint256(low=0,high=signature[1])
+        let (r_high, r_low) = split_felt(signature[0])
+        local sig_r : Uint256 = Uint256(low=r_low, high=r_high)
+        let (s_high, s_low) = split_felt(signature[1])
+        local sig_s : Uint256 = Uint256(low=s_low, high=s_high)
         
         let (local keccak_ptr : felt*) = alloc()
         let keccak_ptr_start = keccak_ptr
