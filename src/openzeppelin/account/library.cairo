@@ -180,14 +180,15 @@ namespace Account:
         local sig_s : Uint256 = Uint256(low=s_low, high=s_high)
         
         let (local keccak_ptr : felt*) = alloc()
-        let keccak_ptr_start = keccak_ptr
-
-        verify_eth_signature_uint256{keccak_ptr=keccak_ptr}(
-            msg_hash=hash_uint256,
-            r=sig_r,
-            s=sig_s,
-            v=1,
-            eth_address=_public_key)
+        
+        with keccak_ptr:
+            verify_eth_signature_uint256(
+                msg_hash=hash_uint256,
+                r=sig_r,
+                s=sig_s,
+                v=1,
+                eth_address=_public_key)
+        end
 
         return ()
     end
