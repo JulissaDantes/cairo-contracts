@@ -3,15 +3,19 @@ from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from utils import TestSigner, assert_revert, contract_path
+from fastecdsa import keys, curve
 from ecdsa import SigningKey, SECP256k1
 import codecs
 from Crypto.Hash import keccak
 
-signer = TestSigner(123456789987654321)
+priv_key = 123456789987654321
+signer = TestSigner(priv_key)
 other = TestSigner(987654321123456789)
 
 IACCOUNT_ID = 0xf10dbd44
 TRUE = 1
+
+pub_key = keys.get_public_key(priv_key, curve.secp256k1)
 
 # Get ECDSA public key
 public_key_point = SigningKey.generate(curve=SECP256k1).verifying_key
@@ -22,34 +26,40 @@ keccak_hash.update(public_key_bytes)
 keccak_digest = keccak_hash.hexdigest()
 # Last 20 bytes
 hex_address = '0x' + keccak_digest[-40:]
-public_key = int(hex_address, 0)
+public_key = int(hex_address, 16)
 
 
 @pytest.fixture(scope='module')
 async def account_factory():
     starknet = await Starknet.empty()
+    print('aqui estamos')
+    print(pub_key)
+    print(type(pub_key.x))
+    int_x = int(str(pub_key.x),16)
+    int_y = int(str(pub_key.y),16)
     account = await starknet.deploy(
         contract_path("tests/mocks/eth_account.cairo"),
-        constructor_calldata=[public_key]
+        constructor_calldata=[int_x, int_y]
     )
-    bad_account = await starknet.deploy(
-        contract_path("openzeppelin/account/Account.cairo"),
-        constructor_calldata=[signer.public_key],
-    )
+    print('aqui llegamos')
+    #bad_account = await starknet.deploy(
+    #    contract_path("openzeppelin/account/Account.cairo"),
+    #    constructor_calldata=[signer.public_key],
+    #)
 
-    return starknet, account, bad_account
+    return starknet, account#, bad_account
 
 
 @pytest.mark.asyncio
 async def test_constructor(account_factory):
-    _, account, _ = account_factory
+    #_, account, _ = account_factory
+    _, account = account_factory
 
     execution_info = await account.get_public_key().call()
     assert execution_info.result == (public_key,)
 
     execution_info = await account.supportsInterface(IACCOUNT_ID).call()
     assert execution_info.result == (TRUE,)
-
 
 @pytest.mark.asyncio
 async def test_execute(account_factory):

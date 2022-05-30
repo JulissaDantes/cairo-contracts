@@ -4,6 +4,9 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin,
 from openzeppelin.account.library import Account, AccountCallArray
 from openzeppelin.introspection.ERC165 import ERC165
 from starkware.cairo.common.cairo_secp.bigint import BigInt3
+from starkware.cairo.common.cairo_secp.signature import public_key_point_to_eth_address
+from starkware.cairo.common.cairo_secp.ec import EcPoint
+from starkware.cairo.common.alloc import alloc
 #
 # Constructor
 #
@@ -12,8 +15,15 @@ from starkware.cairo.common.cairo_secp.bigint import BigInt3
 func constructor{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(public_key: felt):
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*
+    }(x: BigInt3, y: BigInt3):
+    alloc_locals
+    let (local keccak_ptr : felt*) = alloc()
+    let key_point = EcPoint(x=x,y=y)
+    with keccak_ptr:
+        let (public_key: felt) = public_key_point_to_eth_address(key_point)
+    end
     Account.constructor(public_key)
     return ()
 end
@@ -82,8 +92,8 @@ func is_valid_signature{
         signature_len: felt,
         signature: felt*,
         nonce: felt
-    ) -> ():
-    Account.is_valid_eth_signature(hash, signature_len, signature, nonce)
+    ) -> ():    
+    Account.is_valid_eth_signature(hash, signature_len, signature, nonce)    
     return ()
 end
 
