@@ -11,23 +11,39 @@ from starkware.cairo.common.alloc import alloc
 # Constructor
 #
 
+#@constructor
+#func constructor{
+#        syscall_ptr : felt*,
+#        pedersen_ptr : HashBuiltin*,
+#        range_check_ptr,
+#        bitwise_ptr: BitwiseBuiltin*
+#    }(x: BigInt3, y: BigInt3):
+#    alloc_locals
+#    let (local keccak_ptr : felt*) = alloc()
+#    let key_point = EcPoint(x=x,y=y)
+#    with keccak_ptr:
+#        let (public_key: felt) = public_key_point_to_eth_address(key_point)
+#    end
+#    Account.constructor(public_key)
+#    return ()
+#end
+
 @constructor
 func constructor{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
-    }(x: BigInt3, y: BigInt3):
-    alloc_locals
-    let (local keccak_ptr : felt*) = alloc()
-    let key_point = EcPoint(x=x,y=y)
-    with keccak_ptr:
-        let (public_key: felt) = public_key_point_to_eth_address(key_point)
-    end
+    }(public_key: felt):
+    #alloc_locals
+    #let (local keccak_ptr : felt*) = alloc()
+    #let key_point = EcPoint(x=x,y=y)
+    #with keccak_ptr:
+    #    let (public_key: felt) = public_key_point_to_eth_address(key_point)
+    #end
     Account.constructor(public_key)
     return ()
 end
-
 
 #
 # Getters
