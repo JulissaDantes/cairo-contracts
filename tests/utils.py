@@ -9,6 +9,7 @@ from starkware.starknet.testing.starknet import StarknetContract
 from starkware.starknet.business_logic.execution.objects import Event
 from nile.signer import Signer, from_call_to_call_array, get_transaction_hash
 import eth_keys
+import sys
 
 MAX_UINT256 = (2**128 - 1, 2**128 - 1)
 INVALID_UINT256 = (MAX_UINT256[0] + 1, MAX_UINT256[1])
@@ -230,7 +231,8 @@ class TestEthSigner():
         message_hash = get_transaction_hash(
             int(hex(account.contract_address), 16), call_array, calldata, nonce, max_fee #TODO stop double converting the sender
         )
-        
-        signature = self.signer.sign_msg_hash(message_hash)
-        print(signature.r, signature.s, signature.v)
-        return await account.__execute__(call_array, calldata, nonce).invoke(signature=[signature.v, signature.r, signature.s])
+        signature = self.signer.sign_msg_hash(bytes.fromhex(hex(message_hash)[0][2:]))
+        sig_r = to_uint(signature.r)
+        sig_s = to_uint(signature.s)
+        return await account.__execute__(call_array, calldata, nonce).invoke(signature=[signature.v, sig_r[0], sig_r[1], sig_s[0], sig_s[1]])
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
