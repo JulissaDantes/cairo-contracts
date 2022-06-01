@@ -8,13 +8,7 @@ from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.testing.starknet import StarknetContract
 from starkware.starknet.business_logic.execution.objects import Event
 from nile.signer import Signer, from_call_to_call_array, get_transaction_hash
-from fastecdsa import keys, curve, ecdsa
-from ecdsa import SigningKey, SECP256k1, sigdecode_string
-import hashlib
-import codecs
-import sys
-from Crypto.Hash import keccak
-
+import eth_keys
 
 MAX_UINT256 = (2**128 - 1, 2**128 - 1)
 INVALID_UINT256 = (MAX_UINT256[0] + 1, MAX_UINT256[1])
@@ -214,18 +208,9 @@ class TestEthSigner():
         )
                            
     """
-    def __init__(self):
-        self.signer = signer = SigningKey.generate(curve=SECP256k1)
-        public_key_point = self.signer.verifying_key
-        key_bytes = public_key_point.to_string()
-        public_key_bytes = codecs.encode(key_bytes, 'hex')
-        keccak_hash = keccak.new(digest_bits=256)
-        keccak_hash.update(public_key_bytes)
-        keccak_digest = keccak_hash.hexdigest()
-        # Last 20 bytes
-        hex_address = '0x' + keccak_digest[-40:]
-        public_key = int(hex_address, 16)
-        self.public_key = public_key
+    def __init__(self, private_key):
+        self.signer = eth_keys.keys.PrivateKey(private_key)        
+        self.public_key = int(self.signer.public_key.to_address(), 16)
         
     async def send_transaction(self, account, to, selector_name, calldata, nonce=None, max_fee=0):
         return await self.send_transactions(account, [(to, selector_name, calldata)], nonce, max_fee)
@@ -246,6 +231,6 @@ class TestEthSigner():
             int(hex(account.contract_address), 16), call_array, calldata, nonce, max_fee #TODO stop double converting the sender
         )
         
-        signature = self.signer.sign((message_hash).to_bytes(251, byteorder='big'), hashfunc=hashlib.sha256)
-        print(signature.r)
-        return await account.__execute__(call_array, calldata, nonce).invoke(signature=signature)
+        signature = self.signer.sign_msg_hash(message_hash)
+        print(signature.r, signature.s, signature.v)
+        return await account.__execute__(call_array, calldata, nonce).invoke(signature=[signature.v, signature.r, signature.s])

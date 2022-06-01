@@ -3,8 +3,9 @@ from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from utils import TestSigner, TestEthSigner, assert_revert, contract_path
+import sys 
 
-signer = TestEthSigner()
+signer = TestEthSigner(b'98765432112345678912540326589632')
 other = TestSigner(987654321123456789)
 
 IACCOUNT_ID = 0xf10dbd44
@@ -13,7 +14,9 @@ TRUE = 1
 @pytest.fixture(scope='module')
 async def account_factory():
     starknet = await Starknet.empty()
-
+    print(sys.getsizeof(signer.public_key),signer.public_key)
+    print(sys.getsizeof(other.public_key),other.public_key)
+    
     account = await starknet.deploy(
         contract_path("tests/mocks/eth_account.cairo"),
         constructor_calldata=[signer.public_key]
