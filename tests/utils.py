@@ -211,7 +211,7 @@ class TestEthSigner():
     """
     def __init__(self, private_key):
         self.signer = eth_keys.keys.PrivateKey(private_key)        
-        self.public_key = int(self.signer.public_key.to_address(), 16)
+        self.public_key = int(self.signer.public_key.to_checksum_address(),0)
         
     async def send_transaction(self, account, to, selector_name, calldata, nonce=None, max_fee=0):
         return await self.send_transactions(account, [(to, selector_name, calldata)], nonce, max_fee)
@@ -229,7 +229,7 @@ class TestEthSigner():
 
         (call_array, calldata) = from_call_to_call_array(build_calls)
         message_hash = get_transaction_hash(
-            int(hex(account.contract_address), 16), call_array, calldata, nonce, max_fee #TODO stop double converting the sender
+            account.contract_address, call_array, calldata, nonce, max_fee
         )
         signature = self.signer.sign_msg_hash(bytes.fromhex(hex(message_hash)[0][2:]))
         sig_r = to_uint(signature.r)

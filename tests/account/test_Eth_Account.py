@@ -4,7 +4,8 @@ from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from utils import TestSigner, TestEthSigner, assert_revert, contract_path
 
-signer = TestEthSigner(b'98765432112345678912540326589632')
+private_key = b'\x01' * 32
+signer = TestEthSigner(private_key)
 other = TestSigner(987654321123456789)
 
 IACCOUNT_ID = 0xf10dbd44
