@@ -9,6 +9,7 @@ from starkware.starknet.testing.starknet import StarknetContract
 from starkware.starknet.business_logic.execution.objects import Event
 from nile.signer import Signer, from_call_to_call_array, get_transaction_hash
 import eth_keys
+from Crypto.Hash import keccak
 import sys
 
 MAX_UINT256 = (2**128 - 1, 2**128 - 1)
@@ -168,7 +169,7 @@ class TestSigner():
         if nonce is None:
             execution_info = await account.get_nonce().call()
             nonce, = execution_info.result
-
+        
         build_calls = []
         for call in calls:
             build_call = list(call)
@@ -231,8 +232,24 @@ class TestEthSigner():
         message_hash = get_transaction_hash(
             account.contract_address, call_array, calldata, nonce, max_fee
         )
-        signature = self.signer.sign_msg_hash(bytes.fromhex(hex(message_hash)[0][2:]))
+        k = keccak.new(digest_bits=256)
+        k.update(b'some message')
+        #signature = self.signer.sign_msg_hash(bytes.fromhex(hex(message_hash)[0][2:]))
+        hash = to_uint(int(k.hexdigest(), 16))
+        signature = self.signer.sign_msg_hash(k.digest())        
         sig_r = to_uint(signature.r)
         sig_s = to_uint(signature.s)
-        return await account.__execute__(call_array, calldata, nonce).invoke(signature=[signature.v, sig_r[0], sig_r[1], sig_s[0], sig_s[1]])
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+        parameter = [signature.v, sig_r[0], sig_r[1], sig_s[0], sig_s[1], hash[0], hash[1], self.public_key]
+        print(signature.v, sig_r[0], sig_r[1], sig_s[0], sig_s[1], hash[0], hash[1])
+        #hash siglen, sig, nonce
+        verify_info = await account.is_valid_signature(1,len(parameter), nonce).invoke(signature=parameter)
+        print('verify_info::::', verify_info)
+        return await account.__execute__(call_array, calldata, nonce).invoke(signature=parameter)
+
+        #1, 
+        #204341975857846537525514293213678381151, 
+        #5647626296104392149104274513728112502, 
+        #332287503268813104922471649269395527570, 
+        #94246299739854620429852135016140906563, 
+        #35906642431676838346228069808716689542, 
+        #209980939756339129485643071484921519865                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   

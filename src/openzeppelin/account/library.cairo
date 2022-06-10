@@ -167,26 +167,24 @@ namespace Account:
         # validate nonce
         assert _current_nonce = nonce
 
-        # data types conversions
-        let (hash_high, hash_low) = split_felt(hash)
-        local hash_uint256 : Uint256 = Uint256(low=hash_low, high=hash_high)
-
         # This interface expects a signature pointer and length to make
         # no assumption about signature validation schemes.
         # But this implementation does, and it expects a (sig_r, sig_s) pair.
         let sig_v: felt = signature[0]
         local sig_r : Uint256 = Uint256(low=signature[1], high=signature[2])
         local sig_s : Uint256 = Uint256(low=signature[3], high=signature[4])
-        
+        local msg_hash : Uint256 = Uint256(low=signature[5], high=signature[6])
+        let eth_address: felt = signature[7]
         let (local keccak_ptr : felt*) = alloc()
-        
         with keccak_ptr:
+            with_attr error_message("The signature is not: {eth_address} "):
             verify_eth_signature_uint256(
-                msg_hash=hash_uint256,
+                msg_hash=msg_hash,
                 r=sig_r,
                 s=sig_s,
                 v=sig_v,
-                eth_address=_public_key)
+                eth_address=eth_address)
+            end            
         end
 
         return ()

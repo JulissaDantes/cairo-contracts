@@ -53,7 +53,6 @@ async def test_execute(account_factory):
     execution_info = await initializable.initialized().call()
     assert execution_info.result == (1,)
 
-
 @pytest.mark.asyncio
 async def test_multicall(account_factory):
     starknet, account, _ = account_factory
