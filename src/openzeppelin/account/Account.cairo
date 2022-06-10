@@ -18,7 +18,7 @@ func constructor{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(public_key: felt):
-    Account.constructor(public_key)
+    Account.initializer(public_key)
     return ()
 end
 
@@ -74,20 +74,25 @@ end
 # Business logic
 #
 
-#@view
+@view
 func is_valid_signature{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*,
-        nonce: felt
+        ecdsa_ptr: SignatureBuiltin*
     }(
         hash: felt,
         signature_len: felt,
         signature: felt*
+<<<<<<< HEAD
     ) -> ():
     Account.is_valid_signature(hash, signature_len, signature, nonce)
     return ()
+=======
+    ) -> (is_valid: felt):
+    let (is_valid) = Account.is_valid_signature(hash, signature_len, signature)
+    return (is_valid=is_valid)
+>>>>>>> main
 end
 
 @external

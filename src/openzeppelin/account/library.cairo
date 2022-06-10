@@ -9,6 +9,7 @@ from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uin
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.bool import TRUE
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
 
 from openzeppelin.introspection.ERC165 import ERC165
@@ -50,10 +51,10 @@ end
 namespace Account:
 
     #
-    # Constructor
+    # Initializer
     #
 
-    func constructor{
+    func initializer{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
@@ -124,9 +125,8 @@ namespace Account:
         }(
             hash: felt,
             signature_len: felt,
-            signature: felt*,
-            nonce: felt
-        ) -> ():
+            signature: felt*
+        ) -> (is_valid: felt):
         let (_public_key) = Account_public_key.read()
         let (_current_nonce) = Account_current_nonce.read()
 
@@ -146,7 +146,7 @@ namespace Account:
             signature_r=sig_r,
             signature_s=sig_s)
 
-        return ()
+        return (is_valid=TRUE)
     end
 
     func is_valid_eth_signature{
@@ -202,12 +202,21 @@ namespace Account:
             calldata: felt*,
             nonce: felt
         ) -> (response_len: felt, response: felt*):
-        
+        alloc_locals
+
+        let (caller) = get_caller_address()
+        with_attr error_message("Account: no reentrant call"):
+            assert caller = 0
+        end
+
         let (__fp__, _) = get_fp_and_pc()
         let (tx_info) = get_tx_info()
 
         # validate transaction
-        is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature, nonce)
+        let (is_valid) = is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature)
+        with_attr error_message("Account: invalid signature"):
+            assert is_valid = TRUE
+        end
 
         return unsafe_execute(call_array_len, call_array, calldata_len, calldata)
     end
@@ -225,6 +234,12 @@ namespace Account:
             nonce: felt
         ) -> (response_len: felt, response: felt*):
         alloc_locals
+        
+        let (caller) = get_caller_address()
+        with_attr error_message("Account: no reentrant call"):
+            assert caller = 0
+        end
+
         let (__fp__, _) = get_fp_and_pc()
         let (tx_info) = get_tx_info()
 
@@ -232,7 +247,10 @@ namespace Account:
         let bitwise_ptr_start = bitwise_ptr
 
         # validate transaction        
-        is_valid_eth_signature{bitwise_ptr=bitwise_ptr}(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature, nonce)
+        let (is_valid) = is_valid_eth_signature{bitwise_ptr=bitwise_ptr}(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature)
+        with_attr error_message("Account: invalid signature"):
+            assert is_valid = TRUE
+        end
 
         return unsafe_execute(call_array_len, call_array, calldata_len, calldata)
     end
