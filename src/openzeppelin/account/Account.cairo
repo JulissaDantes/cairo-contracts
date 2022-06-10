@@ -84,15 +84,9 @@ func is_valid_signature{
         hash: felt,
         signature_len: felt,
         signature: felt*
-<<<<<<< HEAD
-    ) -> ():
-    Account.is_valid_signature(hash, signature_len, signature, nonce)
-    return ()
-=======
     ) -> (is_valid: felt):
     let (is_valid) = Account.is_valid_signature(hash, signature_len, signature)
     return (is_valid=is_valid)
->>>>>>> main
 end
 
 @external
