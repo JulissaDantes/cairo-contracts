@@ -2,19 +2,19 @@ import pytest
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
-from signers import MockSigner
-from utils import assert_revert, get_contract_def, cached_contract
+from utils import assert_revert, get_contract_def, cached_contract, TRUE
+from signers import MockEthSigner
 
-
-signer = MockSigner(123456789987654321)
-other = MockSigner(987654321123456789)
+private_key = b'\x01' * 32
+signer = MockEthSigner(b'\x01' * 32)
+other = MockEthSigner(b'\x02' * 32)
 
 IACCOUNT_ID = 0xf10dbd44
 
 
 @pytest.fixture(scope='module')
 def contract_defs():
-    account_def = get_contract_def('openzeppelin/account/Account.cairo')
+    account_def = get_contract_def('openzeppelin/account/EthAccount.cairo')
     init_def = get_contract_def("tests/mocks/Initializable.cairo")
     attacker_def = get_contract_def("tests/mocks/account_reentrancy.cairo")
 
@@ -28,11 +28,11 @@ async def account_init(contract_defs):
 
     account1 = await starknet.deploy(
         contract_def=account_def,
-        constructor_calldata=[signer.public_key]
+        constructor_calldata=[signer.eth_address]
     )
     account2 = await starknet.deploy(
         contract_def=account_def,
-        constructor_calldata=[signer.public_key]
+        constructor_calldata=[signer.eth_address]
     )
     initializable1 = await starknet.deploy(
         contract_def=init_def,
@@ -68,8 +68,8 @@ def account_factory(contract_defs, account_init):
 async def test_constructor(account_factory):
     account, *_ = account_factory
 
-    execution_info = await account.get_public_key().call()
-    assert execution_info.result == (signer.public_key,)
+    execution_info = await account.get_eth_address().call()
+    assert execution_info.result == (signer.eth_address,)
 
     execution_info = await account.supportsInterface(IACCOUNT_ID).call()
     assert execution_info.result == (TRUE,)
@@ -82,7 +82,10 @@ async def test_execute(account_factory):
     execution_info = await initializable.initialized().call()
     assert execution_info.result == (0,)
 
-    await signer.send_transactions(account, [(initializable.contract_address, 'initialize', [])])
+    _, hash, signature = await signer.send_transactions(account, [(initializable.contract_address, 'initialize', [])])
+
+    validity_info, *_ = await signer.send_transactions(account, [(account.contract_address, 'is_valid_signature', [hash, len(signature), *signature])])
+    assert validity_info.result.response[0] == 1
 
     execution_info = await initializable.initialized().call()
     assert execution_info.result == (1,)
@@ -118,7 +121,7 @@ async def test_return_value(account_factory):
     # initialize, set `initialized = 1`
     await signer.send_transactions(account, [(initializable.contract_address, 'initialize', [])])
 
-    read_info = await signer.send_transactions(account, [(initializable.contract_address, 'initialized', [])])
+    read_info, *_ = await signer.send_transactions(account, [(initializable.contract_address, 'initialized', [])])
     call_info = await initializable.initialized().call()
     (call_result, ) = call_info.result
     assert read_info.result.response == [call_result]  # 1
@@ -132,10 +135,12 @@ async def test_nonce(account_factory):
     current_nonce = execution_info.result.res
 
     # lower nonce
-    await assert_revert(
-        signer.send_transactions(account, [(initializable.contract_address, 'initialize', [])], current_nonce - 1),
-        reverted_with="Account: nonce is invalid"
-    )
+    try:
+        await signer.send_transactions(account, [(initializable.contract_address, 'initialize', [])], current_nonce - 1)
+        assert False
+    except StarkException as err:
+        _, error = err.args
+        assert error['code'] == StarknetErrorCode.TRANSACTION_FAILED
 
     # higher nonce
     await assert_revert(
@@ -151,27 +156,28 @@ async def test_nonce(account_factory):
 
 
 @pytest.mark.asyncio
-async def test_public_key_setter(account_factory):
+async def test_eth_address_setter(account_factory):
     account, *_ = account_factory
 
-    execution_info = await account.get_public_key().call()
-    assert execution_info.result == (signer.public_key,)
-    
-    # set new pubkey
-    await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [other.public_key])])
+    execution_info = await account.get_eth_address().call()
+    assert execution_info.result == (signer.eth_address,)
 
-    execution_info = await account.get_public_key().call()
-    assert execution_info.result == (other.public_key,)
+    # set new pubkey
+    await signer.send_transactions(account, [(account.contract_address, 'set_eth_address', [other.eth_address])])
+
+    execution_info = await account.get_eth_address().call()
+    assert execution_info.result == (other.eth_address,)
+
 
 @pytest.mark.asyncio
-async def test_public_key_setter_different_account(account_factory):
+async def test_eth_address_setter_different_account(account_factory):
     account, bad_account, *_ = account_factory
 
     # set new pubkey
     await assert_revert(
         signer.send_transactions(
             bad_account,
-            [(account.contract_address, 'set_public_key', [other.public_key])]
+            [(account.contract_address, 'set_eth_address', [other.eth_address])]
         ),
         reverted_with="Account: caller is not this account"
     )
@@ -186,5 +192,5 @@ async def test_account_takeover_with_reentrant_call(account_factory):
         reverted_with="Account: no reentrant call"
     )
     
-    execution_info = await account.get_public_key().call()
-    assert execution_info.result == (signer.public_key,)
+    execution_info = await account.get_eth_address().call()
+    assert execution_info.result == (signer.eth_address,)

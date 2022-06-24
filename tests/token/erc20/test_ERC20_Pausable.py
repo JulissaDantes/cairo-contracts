@@ -1,7 +1,8 @@
 import pytest
 from starkware.starknet.testing.starknet import Starknet
+from signers import MockSigner
 from utils import (
-    MockSigner, TRUE, FALSE, to_uint, str_to_felt, assert_revert, 
+    TRUE, FALSE, to_uint, str_to_felt, assert_revert, 
     get_contract_def, cached_contract
 )
 

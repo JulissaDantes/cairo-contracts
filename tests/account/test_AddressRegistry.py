@@ -1,6 +1,7 @@
 import pytest
 from starkware.starknet.testing.starknet import Starknet
-from utils import MockSigner, contract_path
+from signers import MockSigner
+from utils import contract_path
 
 
 signer = MockSigner(123456789987654321)
